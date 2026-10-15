@@ -13,10 +13,8 @@ async def load_repository_context(gh, factory, base_branch: str, relevant_paths=
     paths = [row["path"] for row in tree.get("tree", []) if row.get("type") == "blob"]
     if len(paths) > 5000:
         raise ValueError("repository has too many files for MVP context")
-    selected = list(dict.fromkeys(relevant_paths or []))[:20]
-    for path in selected:
-        if path not in paths:
-            raise ValueError(f"requested context path does not exist: {path}")
+    # Planning may name files it intends to create. They have no base content.
+    selected = [path for path in dict.fromkeys(relevant_paths or []) if path in paths][:20]
     pieces = ["Repository files:\n" + "\n".join(paths)]
     total = 0
     for path in selected:
