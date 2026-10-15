@@ -24,20 +24,30 @@ class GhClient:
         *,
         method: str = "GET",
         fields: dict[str, str] | None = None,
+        body: dict[str, Any] | None = None,
         paginate: bool = False,
     ) -> Any:
-        if not path or path.startswith("-") or method not in {"GET", "POST"}:
+        if (
+            not path
+            or path.startswith("-")
+            or method not in {"GET", "POST", "PATCH", "PUT"}
+        ):
             raise ValueError("invalid gh api request")
+        if fields is not None and body is not None:
+            raise ValueError("use fields or body")
         argv = ["gh", "api", path, "--method", method]
         if paginate:
             argv.extend(["--paginate", "--slurp"])
         for key, value in (fields or {}).items():
             argv.extend(["--field", f"{key}={value}"])
+        if body is not None:
+            argv.extend(["--input", "-"])
 
         def invoke() -> Any:
             try:
                 result = subprocess.run(
                     argv,
+                    input=json.dumps(body) if body is not None else None,
                     capture_output=True,
                     text=True,
                     timeout=25,

@@ -1,0 +1,31 @@
+"""Bounded repository context for implementation Agent prompts."""
+
+import base64
+
+
+async def load_repository_context(gh, factory, base_branch: str, relevant_paths=None):
+    root = f"repos/{factory['owner']}/{factory['repo']}"
+    ref = await gh.api(f"{root}/git/ref/heads/{base_branch}")
+    commit = await gh.api(f"{root}/git/commits/{ref['object']['sha']}")
+    tree = await gh.api(f"{root}/git/trees/{commit['tree']['sha']}?recursive=1")
+    if tree.get("truncated"):
+        raise ValueError("repository tree is too large for MVP context")
+    paths = [row["path"] for row in tree.get("tree", []) if row.get("type") == "blob"]
+    if len(paths) > 5000:
+        raise ValueError("repository has too many files for MVP context")
+    selected = list(dict.fromkeys(relevant_paths or []))[:20]
+    for path in selected:
+        if path not in paths:
+            raise ValueError(f"requested context path does not exist: {path}")
+    pieces = ["Repository files:\n" + "\n".join(paths)]
+    total = 0
+    for path in selected:
+        item = await gh.api(f"{root}/contents/{path}?ref={base_branch}")
+        if item.get("encoding") != "base64":
+            raise ValueError("unsupported repository content encoding")
+        content = base64.b64decode(item["content"], validate=False).decode("utf-8")
+        total += len(content.encode("utf-8"))
+        if total > 80_000:
+            raise ValueError("repository context exceeds 80 KiB")
+        pieces.append(f"\n--- {path} ---\n{content}")
+    return "\n".join(pieces)

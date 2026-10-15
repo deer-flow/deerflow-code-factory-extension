@@ -14,6 +14,7 @@ from .github.gh_cli import GhClient, GhIssueSource, GhRepositorySetup
 from .poller import Poller
 from .service import PollService
 from .store import FactoryStore
+from .supervisor import JobSupervisor
 
 
 @extension(api="0.2.5", name="code-factory")
@@ -35,6 +36,7 @@ def install(registry: Any, config: dict[str, Any]) -> None:
     store = FactoryStore(path)
     setup = GhRepositorySetup(GhClient())
     poller = Poller(store, GhIssueSource(GhClient()))
+    supervisor = JobSupervisor(store)
     allowed = set(operators)
 
     def owner(context: Any) -> str:
@@ -136,6 +138,15 @@ def install(registry: Any, config: dict[str, Any]) -> None:
             raise KeyError(payload["factory_id"])
         return store.list_jobs(factory["id"])
 
+    async def start_job(payload: dict[str, Any], context: Any) -> dict[str, bool]:
+        user_id = owner(context)
+        if set(payload) != {"job_id"}:
+            raise ValueError("invalid job start fields")
+        job = store.get_job(payload["job_id"], owner_user_id=user_id)
+        if job is None:
+            raise KeyError(payload["job_id"])
+        return {"started": supervisor.start(job["id"], context.agent_runs)}
+
     accepted = registry.plugin(
         PluginContribution(
             namespace="code-factory",
@@ -150,11 +161,18 @@ def install(registry: Any, config: dict[str, Any]) -> None:
                 BackendAction("set_factory_enabled", set_factory_enabled),
                 BackendAction("scan_factory", scan_factory),
                 BackendAction("list_jobs", list_jobs),
+                BackendAction("start_job", start_job),
             ),
         )
     )
     if accepted is not True:
         raise RuntimeError("code factory requires full-stack plugin support")
-    registry.service(
-        PollService(store, poller, config.get("poll_interval_seconds", 180))
-    )
+    if enabled:
+        registry.service(
+            PollService(
+                store,
+                poller,
+                config.get("poll_interval_seconds", 180),
+                supervisor=supervisor,
+            )
+        )

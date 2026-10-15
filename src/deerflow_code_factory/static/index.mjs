@@ -1,6 +1,6 @@
 const copy = {
-  zh: { title: "代码工厂", intro: "连接仓库，验证后轮询带 factory:ready 标签的 Issue。", owner: "组织或用户", repo: "仓库名", validate: "验证仓库", create: "建立代码工厂", labels: "缺少的标签", confirm: "创建缺少的标签", factories: "已连接的仓库", empty: "尚未连接仓库。先填写仓库信息并验证。", loading: "正在加载…", disabled: "未启用", enabled: "已启用", enable: "启用", disable: "停用", scan: "立即扫描", jobs: "需求工单", noJobs: "尚未发现符合条件的 Issue。", error: "操作失败，请检查 gh 登录状态和仓库权限。", validated: "仓库验证通过", invalid: "仓库尚不能启用", created: "代码工厂已建立", scanned: "扫描完成，新发现 {count} 个工单。", cursor: "上次扫描游标", noCursor: "尚未扫描" },
-  en: { title: "Code factory", intro: "Connect a repository, then poll Issues labeled factory:ready after validation.", owner: "Owner", repo: "Repository", validate: "Validate repository", create: "Create factory", labels: "Missing labels", confirm: "Create missing labels", factories: "Connected repositories", empty: "No repositories connected. Enter a repository and validate it.", loading: "Loading…", disabled: "Disabled", enabled: "Enabled", enable: "Enable", disable: "Disable", scan: "Scan now", jobs: "Requirement tickets", noJobs: "No eligible Issues found yet.", error: "Action failed. Check gh authentication and repository permissions.", validated: "Repository validated", invalid: "Repository cannot be enabled yet", created: "Factory created", scanned: "Scan complete. {count} new tickets found.", cursor: "Last scan cursor", noCursor: "Not scanned" },
+  zh: { title: "代码工厂", intro: "连接仓库，验证后轮询带 factory:ready 标签的 Issue。", owner: "组织或用户", repo: "仓库名", validate: "验证仓库", create: "建立代码工厂", labels: "缺少的标签", confirm: "创建缺少的标签", factories: "已连接的仓库", empty: "尚未连接仓库。先填写仓库信息并验证。", loading: "正在加载…", disabled: "未启用", enabled: "已启用", enable: "启用", disable: "停用", scan: "立即扫描", jobs: "需求工单", noJobs: "尚未发现符合条件的 Issue。", start: "开始开发", started: "开发任务已启动", error: "操作失败，请检查 gh 登录状态和仓库权限。", validated: "仓库验证通过", invalid: "仓库尚不能启用", created: "代码工厂已建立", scanned: "扫描完成，新发现 {count} 个工单。", cursor: "上次扫描游标", noCursor: "尚未扫描" },
+  en: { title: "Code factory", intro: "Connect a repository, then poll Issues labeled factory:ready after validation.", owner: "Owner", repo: "Repository", validate: "Validate repository", create: "Create factory", labels: "Missing labels", confirm: "Create missing labels", factories: "Connected repositories", empty: "No repositories connected. Enter a repository and validate it.", loading: "Loading…", disabled: "Disabled", enabled: "Enabled", enable: "Enable", disable: "Disable", scan: "Scan now", jobs: "Requirement tickets", noJobs: "No eligible Issues found yet.", start: "Start development", started: "Development job started", error: "Action failed. Check gh authentication and repository permissions.", validated: "Repository validated", invalid: "Repository cannot be enabled yet", created: "Factory created", scanned: "Scan complete. {count} new tickets found.", cursor: "Last scan cursor", noCursor: "Not scanned" },
 };
 
 function el(tag, text, className) {
@@ -77,7 +77,19 @@ function mount(root, context) {
           if (!active() || current !== sequence) return;
           jobsList.replaceChildren();
           if (!jobs.length) jobsList.append(el("li", t.noJobs));
-          for (const job of jobs) jobsList.append(el("li", `#${job.issue_number} · ${job.phase}`));
+          for (const job of jobs) {
+            const row = el("li", `#${job.issue_number} · ${job.phase} `);
+            if (["draft", "blocked", "failed"].includes(job.phase)) {
+              const start = el("button", t.start); start.type = "button";
+              start.addEventListener("click", () => void action(start, async () => {
+                await context.callBackend("start_job", { job_id: job.id });
+                if (active()) message.textContent = t.started;
+                await refresh();
+              }), { signal: context.signal });
+              row.append(start);
+            }
+            jobsList.append(row);
+          }
         }).catch(() => { if (active() && current === sequence) jobsList.replaceChildren(el("li", t.error)); });
       }
     } catch (cause) { if (active() && current === sequence) { cards.replaceChildren(); error.textContent = cause?.message || t.error; } }
@@ -106,7 +118,8 @@ function mount(root, context) {
     });
   }, { signal: context.signal });
   void refresh();
-  return { dispose() { disposed = true; sequence += 1; root.replaceChildren(); } };
+  const refreshTimer = setInterval(() => { if (active()) void refresh(); }, 10000);
+  return { dispose() { disposed = true; sequence += 1; clearInterval(refreshTimer); root.replaceChildren(); } };
 }
 
 export default { apiVersion: 1, module: "code-factory.v1", surfaces: [{ id: "factories", slot: "page", title: "Code factory", navigation: { label: "Code factory", labelZh: "代码工厂", icon: "code" }, mount }] };

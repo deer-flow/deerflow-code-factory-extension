@@ -147,6 +147,12 @@ class FactoryStore:
             ).fetchone()
             return self._as_dict(row)
 
+    def get_job_internal(self, job_id: str) -> dict[str, Any] | None:
+        with closing(self._connect()) as db:
+            return self._as_dict(
+                db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+            )
+
     def list_jobs(self, factory_id: str) -> list[dict[str, Any]]:
         with closing(self._connect()) as db:
             rows = db.execute(
