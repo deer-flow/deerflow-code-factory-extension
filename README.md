@@ -5,4 +5,4 @@
 - [产品与技术规格](docs/spec.md)
 - [首版实施计划](docs/implementation-plan.md)
 
-当前只有方案文档，尚未实现或安装扩展。目标宿主是 `/Users/zhfeng/works/deer-flow`；实施前先核对宿主当前扩展 API 与 GitHub 权限配置。
+项目已开始实现：目前有可测试的存储和 GitHub Issue 读取/轮询骨架，尚不能安装并运行完整代码工厂。进度和宿主接口缺口见 [实施进度](docs/progress.md) 与 [宿主能力探针](docs/host-capability-probe.md)。目标宿主是 `/Users/zhfeng/works/deer-flow`。
