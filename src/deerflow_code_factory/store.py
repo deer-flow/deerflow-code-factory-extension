@@ -85,6 +85,29 @@ class FactoryStore:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def list_enabled_factories(self) -> list[dict[str, Any]]:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM factories WHERE enabled=1 ORDER BY id"
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def set_factory_enabled(
+        self, factory_id: str, *, owner_user_id: str, enabled: bool
+    ) -> dict[str, Any]:
+        with closing(self._connect()) as db, db:
+            changed = db.execute(
+                "UPDATE factories SET enabled=? WHERE id=? AND owner_user_id=?",
+                (int(enabled), factory_id, owner_user_id),
+            ).rowcount
+            if not changed:
+                raise KeyError(factory_id)
+            return dict(
+                db.execute(
+                    "SELECT * FROM factories WHERE id=?", (factory_id,)
+                ).fetchone()
+            )
+
     def get_factory(
         self, factory_id: str, *, owner_user_id: str | None = None
     ) -> dict[str, Any] | None:
