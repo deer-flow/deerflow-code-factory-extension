@@ -4,13 +4,37 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlencode
 
 from ..requirements import IssueRef, RequirementSnapshot
-from .setup import LABELS, ValidationReport
+
+LABELS = {
+    "factory:ready": "1d76db",
+    "factory:planning": "5319e7",
+    "factory:blocked": "d93f0b",
+    "factory:building": "fbca04",
+    "factory:review": "0e8a16",
+    "factory:done": "006b75",
+}
+_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+@dataclass(frozen=True)
+class ValidationReport:
+    repository_id: int
+    owner: str
+    repo: str
+    missing_labels: tuple[str, ...]
+    problems: tuple[str, ...]
+
+    @property
+    def ready(self) -> bool:
+        return not self.problems
 
 
 class GhError(RuntimeError):
@@ -116,9 +140,9 @@ class GhRepositorySetup:
 
     @staticmethod
     def _path(owner: str, repo: str) -> str:
-        from .setup import GitHubRepositorySetup
-
-        return GitHubRepositorySetup._path(owner, repo).lstrip("/")
+        if not _NAME.fullmatch(owner) or not _NAME.fullmatch(repo):
+            raise ValueError("invalid GitHub repository name")
+        return f"repos/{owner}/{repo}"
 
     async def validate(self, owner: str, repo: str) -> ValidationReport:
         path = self._path(owner, repo)

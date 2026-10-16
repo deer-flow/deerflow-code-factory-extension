@@ -1,5 +1,7 @@
 # DeerFlow Code Factory MVP Implementation Plan
 
+> Implementation note (2026-10-15): the validated MVP uses `gh` CLI, a per-ticket start action and structured Agent output. The original GitHub App and host workspace snapshot tasks below remain historical planning context. The current implementation and verification are recorded in [acceptance.md](acceptance.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a standalone DeerFlow extension that polls GitHub Issues and automatically carries one requirement through design, code, independent review, tests, PR, and merge, without publishing a version.

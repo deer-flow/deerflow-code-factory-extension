@@ -4,7 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from deerflow_code_factory import install
-from deerflow_code_factory.github.setup import ValidationReport
+from deerflow_code_factory.github.gh_cli import ValidationReport
+from deerflow_code_factory.store import FactoryStore
 
 
 class Registry:
@@ -46,6 +47,21 @@ async def test_install_registers_owner_scoped_actions(
     )
     assert created["repository_id"] == 42
     assert len(await actions["list_factories"]({}, context)) == 1
+    store = FactoryStore(tmp_path / "factory.sqlite")
+    job = store.create_or_get_job(created["id"], issue_id=70, issue_number=7)
+    store.transition(
+        job["id"],
+        expected_version=0,
+        phase="awaiting_checks",
+        evidence={
+            "pr_url": "https://github.com/acme/widget/pull/9",
+            "pr_number": 9,
+            "head_sha": "head",
+        },
+    )
+    listed = await actions["list_jobs"]({"factory_id": created["id"]}, context)
+    assert listed[0]["pr_url"] == "https://github.com/acme/widget/pull/9"
+    assert listed[0]["issue_url"] == "https://github.com/acme/widget/issues/7"
     other = SimpleNamespace(principal=SimpleNamespace(user_id="bob"))
     with pytest.raises(PermissionError):
         await actions["list_factories"]({}, other)

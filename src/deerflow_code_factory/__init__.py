@@ -136,7 +136,27 @@ def install(registry: Any, config: dict[str, Any]) -> None:
         factory = store.get_factory(payload["factory_id"], owner_user_id=user_id)
         if factory is None:
             raise KeyError(payload["factory_id"])
-        return store.list_jobs(factory["id"])
+        jobs = []
+        for job in store.list_jobs(factory["id"]):
+            events = store.list_events(job["id"])
+            delivery = next(
+                (
+                    event["evidence"]
+                    for event in reversed(events)
+                    if "pr_url" in event["evidence"]
+                ),
+                {},
+            )
+            latest = events[-1]["evidence"] if events else {}
+            jobs.append(
+                {
+                    **job,
+                    "issue_url": f"https://github.com/{factory['owner']}/{factory['repo']}/issues/{job['issue_number']}",
+                    "pr_url": delivery.get("pr_url"),
+                    "detail": latest.get("reason") or latest.get("question"),
+                }
+            )
+        return jobs
 
     async def start_job(payload: dict[str, Any], context: Any) -> dict[str, bool]:
         user_id = owner(context)

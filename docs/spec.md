@@ -55,3 +55,6 @@ Issue 正文、评论和仓库文件均作为不可信输入，不得当作系�
 ## 首版验收
 
 用测试仓库完成两条真实端到端路径：一条清晰 Issue 自动完成到 PR 合并与 factory:done；一条含关键歧义的 Issue 暂停、提问、读取回复后继续。重复扫描不产生重复工单或评论；变更 SHA 后旧报告不被复用；CI 失败或分支规则未满足时不标记 completed；任何路径都不创建 Release 或镜像。
+# 2026-10-15 MVP implementation amendment
+
+The validated MVP uses the operator's authenticated `gh` CLI session instead of a GitHub App. Its browser page and backend actions live in the standalone extension. Existing repositories are supported; new-repository creation remains outside this version. Each discovered Issue requires an explicit per-ticket “Start development” action. After that action, the Agent stages and CI/merge gate proceed unattended. The Agent returns bounded structured JSON containing complete UTF-8 file replacements, so no host workspace-export API is needed for the first version. See [acceptance.md](acceptance.md) for the real test run and current limits.
