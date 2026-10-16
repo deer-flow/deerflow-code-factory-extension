@@ -1,6 +1,6 @@
 const copy = {
-  zh: { title: "代码工厂", intro: "连接仓库，验证后轮询带 factory:ready 标签的 Issue。", provider: "代码平台", repoUrl: "仓库地址", join: "加入", urlHint: "请输入 GitHub 仓库地址，例如 https://github.com/owner/repo", labels: "缺少的标签", confirm: "创建缺少的标签", factories: "已连接的仓库", empty: "尚未连接仓库。输入仓库地址后点击加入。", loading: "正在加载…", disabled: "未启用", enabled: "已启用", enable: "启用", disable: "停用", scan: "立即扫描", jobs: "需求工单", noJobs: "尚未发现符合条件的 Issue。", start: "开始开发", started: "开发任务已启动", error: "操作失败，请检查 gh 登录状态和仓库权限。", validated: "仓库验证通过", invalid: "仓库尚不能启用", created: "仓库已加入代码工厂", scanned: "扫描完成，新发现 {count} 个工单。", cursor: "上次扫描游标", noCursor: "尚未扫描" },
-  en: { title: "Code factory", intro: "Connect a repository, then poll Issues labeled factory:ready after validation.", provider: "Platform", repoUrl: "Repository URL", join: "Add", urlHint: "Enter a GitHub repository URL, such as https://github.com/owner/repo", labels: "Missing labels", confirm: "Create missing labels", factories: "Connected repositories", empty: "No repositories connected. Enter a repository URL and select Add.", loading: "Loading…", disabled: "Disabled", enabled: "Enabled", enable: "Enable", disable: "Disable", scan: "Scan now", jobs: "Requirement tickets", noJobs: "No eligible Issues found yet.", start: "Start development", started: "Development job started", error: "Action failed. Check gh authentication and repository permissions.", validated: "Repository validated", invalid: "Repository cannot be enabled yet", created: "Repository added to code factory", scanned: "Scan complete. {count} new tickets found.", cursor: "Last scan cursor", noCursor: "Not scanned" },
+  zh: { title: "代码工厂", intro: "连接仓库，验证后轮询带 factory:ready 标签的 Issue。", provider: "代码平台", repoUrl: "仓库地址", join: "加入", urlHint: "请输入 GitHub 仓库地址，例如 https://github.com/owner/repo", labels: "缺少的标签", confirm: "创建缺少的标签", factories: "已连接的仓库", refresh: "刷新状态", empty: "尚未连接仓库。输入仓库地址后点击加入。", loading: "正在加载…", disabled: "未启用", enabled: "已启用", enable: "启用", disable: "停用", scan: "立即扫描", jobs: "需求工单", noJobs: "尚未发现符合条件的 Issue。", start: "开始开发", started: "开发任务已启动", error: "操作失败，请检查 gh 登录状态和仓库权限。", validated: "仓库验证通过", invalid: "仓库尚不能启用", created: "仓库已加入代码工厂", scanned: "扫描完成，新发现 {count} 个工单。", cursor: "上次扫描游标", noCursor: "尚未扫描" },
+  en: { title: "Code factory", intro: "Connect a repository, then poll Issues labeled factory:ready after validation.", provider: "Platform", repoUrl: "Repository URL", join: "Add", urlHint: "Enter a GitHub repository URL, such as https://github.com/owner/repo", labels: "Missing labels", confirm: "Create missing labels", factories: "Connected repositories", refresh: "Refresh status", empty: "No repositories connected. Enter a repository URL and select Add.", loading: "Loading…", disabled: "Disabled", enabled: "Enabled", enable: "Enable", disable: "Disable", scan: "Scan now", jobs: "Requirement tickets", noJobs: "No eligible Issues found yet.", start: "Start development", started: "Development job started", error: "Action failed. Check gh authentication and repository permissions.", validated: "Repository validated", invalid: "Repository cannot be enabled yet", created: "Repository added to code factory", scanned: "Scan complete. {count} new tickets found.", cursor: "Last scan cursor", noCursor: "Not scanned" },
 };
 
 export function parseRepositoryUrl(provider, value) {
@@ -51,7 +51,9 @@ function mount(root, context) {
   const message = el("p", "", "message"); message.setAttribute("role", "status");
   const error = el("p", "", "error"); error.setAttribute("role", "alert");
   const section = el("section", undefined, "factory-list");
-  section.append(el("h2", t.factories));
+  const sectionHeader = el("div", undefined, "section-header");
+  const refreshButton = el("button", t.refresh); refreshButton.type = "button";
+  sectionHeader.append(el("h2", t.factories), refreshButton); section.append(sectionHeader);
   const cards = el("div"); section.append(cards);
   form.append(providerLabel, repoLabel, join);
   shell.append(header, form, setupResult, message, error, section);
@@ -123,6 +125,7 @@ function mount(root, context) {
       }
     } catch (cause) { if (active() && current === sequence) { cards.replaceChildren(); error.textContent = cause?.message || t.error; } }
   }
+  refreshButton.addEventListener("click", () => void action(refreshButton, refresh), { signal: context.signal });
   let setupSequence = 0;
   const resetSetup = () => { setupSequence += 1; setupResult.replaceChildren(); };
   repoInput.addEventListener("input", resetSetup, { signal: context.signal });
@@ -162,8 +165,7 @@ function mount(root, context) {
     });
   }, { signal: context.signal });
   void refresh();
-  const refreshTimer = setInterval(() => { if (active()) void refresh(); }, 10000);
-  return { dispose() { disposed = true; sequence += 1; clearInterval(refreshTimer); root.replaceChildren(); } };
+  return { dispose() { disposed = true; sequence += 1; root.replaceChildren(); } };
 }
 
 export default { apiVersion: 1, module: "code-factory.v1", surfaces: [{ id: "factories", slot: "page", title: "Code factory", navigation: { label: "Code factory", labelZh: "代码工厂", icon: "code" }, mount }] };
