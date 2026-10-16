@@ -48,7 +48,13 @@ async def test_install_registers_owner_scoped_actions(
     assert created["repository_id"] == 42
     assert len(await actions["list_factories"]({}, context)) == 1
     store = FactoryStore(tmp_path / "factory.sqlite")
-    job = store.create_or_get_job(created["id"], issue_id=70, issue_number=7)
+    job = store.create_or_get_job(
+        created["id"],
+        issue_id=70,
+        issue_number=7,
+        issue_title="Add export",
+        issue_updated_at="2026-10-15T01:00:00+00:00",
+    )
     store.transition(
         job["id"],
         expected_version=0,
@@ -61,6 +67,9 @@ async def test_install_registers_owner_scoped_actions(
     )
     listed = await actions["list_jobs"]({"factory_id": created["id"]}, context)
     assert listed[0]["pr_url"] == "https://github.com/acme/widget/pull/9"
+    assert listed[0]["pr_number"] == 9
+    assert listed[0]["issue_title"] == "Add export"
+    assert listed[0]["last_updated_at"]
     assert listed[0]["issue_url"] == "https://github.com/acme/widget/issues/7"
     other = SimpleNamespace(principal=SimpleNamespace(user_id="bob"))
     with pytest.raises(PermissionError):

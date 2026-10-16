@@ -53,6 +53,7 @@ async def test_scan_deduplicates_issues_and_ignores_pull_requests(
     assert await poller.scan_factory(factory["id"]) == 1
     assert await poller.scan_factory(factory["id"]) == 0
     assert len(store.list_jobs(factory["id"])) == 1
+    assert store.list_jobs(factory["id"])[0]["issue_title"] == "Add export"
 
 
 @pytest.mark.asyncio

@@ -5,3 +5,5 @@ Operator page for connecting GitHub repositories and observing Issue intake. The
 The UI must never imply that Issue intake has completed coding or released a package. Statuses name only observed facts. All mutable operations are owner scoped on the server. Text from GitHub is rendered with `textContent`.
 
 The repository and job list refreshes on initial load, after a user action, or when the operator selects Refresh status. The page does not poll its own UI; the Gateway Issue poll remains independent.
+
+The connected-repository area uses one labeled URL selector and shows only the selected repository. Its ticket table exposes internal ticket ID, linked Issue number, title, phase, linked PR number, last update, and row actions. The full internal ID remains available as a tooltip. The table scrolls horizontally on narrow screens.

@@ -49,6 +49,11 @@ class FactoryStore:
                 );
                 """
             )
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(jobs)")}
+            if "issue_title" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN issue_title TEXT")
+            if "issue_updated_at" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN issue_updated_at TEXT")
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
@@ -124,7 +129,13 @@ class FactoryStore:
             return self._as_dict(row)
 
     def create_or_get_job(
-        self, factory_id: str, *, issue_id: int, issue_number: int
+        self,
+        factory_id: str,
+        *,
+        issue_id: int,
+        issue_number: int,
+        issue_title: str | None = None,
+        issue_updated_at: str | None = None,
     ) -> dict[str, Any]:
         if issue_id <= 0 or issue_number <= 0:
             raise ValueError("invalid issue")
@@ -133,6 +144,11 @@ class FactoryStore:
                 "INSERT OR IGNORE INTO jobs(id, factory_id, issue_id, issue_number) VALUES (?, ?, ?, ?)",
                 (str(uuid.uuid4()), factory_id, issue_id, issue_number),
             )
+            if issue_title is not None and issue_updated_at is not None:
+                db.execute(
+                    "UPDATE jobs SET issue_title=?, issue_updated_at=? WHERE factory_id=? AND issue_id=?",
+                    (issue_title, issue_updated_at, factory_id, issue_id),
+                )
             row = db.execute(
                 "SELECT * FROM jobs WHERE factory_id=? AND issue_id=?",
                 (factory_id, issue_id),
@@ -201,7 +217,7 @@ class FactoryStore:
     def list_events(self, job_id: str) -> list[dict[str, Any]]:
         with closing(self._connect()) as db:
             rows = db.execute(
-                "SELECT version, phase, evidence_json FROM job_events WHERE job_id=? ORDER BY version",
+                "SELECT version, phase, evidence_json, created_at FROM job_events WHERE job_id=? ORDER BY version",
                 (job_id,),
             ).fetchall()
             return [
@@ -209,6 +225,7 @@ class FactoryStore:
                     "version": row["version"],
                     "phase": row["phase"],
                     "evidence": json.loads(row["evidence_json"]),
+                    "created_at": row["created_at"],
                 }
                 for row in rows
             ]

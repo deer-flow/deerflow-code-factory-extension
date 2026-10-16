@@ -1,5 +1,7 @@
 """DeerFlow code factory extension."""
 
+import asyncio
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,7 @@ from deerflow_extension_api.plugins import (
 
 from .github.gh_cli import GhClient, GhIssueSource, GhRepositorySetup
 from .poller import Poller
+from .requirements import IssueRef
 from .service import PollService
 from .store import FactoryStore
 from .supervisor import JobSupervisor
@@ -136,8 +139,31 @@ def install(registry: Any, config: dict[str, Any]) -> None:
         factory = store.get_factory(payload["factory_id"], owner_user_id=user_id)
         if factory is None:
             raise KeyError(payload["factory_id"])
+        rows = store.list_jobs(factory["id"])
+        missing = [job for job in rows if not job.get("issue_title")]
+        if missing:
+            semaphore = asyncio.Semaphore(4)
+
+            async def fill(job: dict[str, Any]) -> None:
+                async with semaphore:
+                    try:
+                        ticket = await poller.source.fetch(
+                            factory, IssueRef(job["issue_id"], job["issue_number"])
+                        )
+                    except (OSError, RuntimeError, ValueError, KeyError):
+                        return
+                    store.create_or_get_job(
+                        factory["id"],
+                        issue_id=ticket.issue_id,
+                        issue_number=ticket.number,
+                        issue_title=ticket.title,
+                        issue_updated_at=ticket.updated_at.isoformat(),
+                    )
+
+            await asyncio.gather(*(fill(job) for job in missing))
+            rows = store.list_jobs(factory["id"])
         jobs = []
-        for job in store.list_jobs(factory["id"]):
+        for job in rows:
             events = store.list_events(job["id"])
             delivery = next(
                 (
@@ -148,11 +174,27 @@ def install(registry: Any, config: dict[str, Any]) -> None:
                 {},
             )
             latest = events[-1]["evidence"] if events else {}
+            timestamps = [job["issue_updated_at"]] if job["issue_updated_at"] else []
+            if events:
+                timestamps.append(events[-1]["created_at"])
+            last_updated = max(
+                (
+                    datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+                    if datetime.fromisoformat(value).tzinfo is None
+                    else datetime.fromisoformat(value)
+                    for value in timestamps
+                ),
+                default=None,
+            )
             jobs.append(
                 {
                     **job,
                     "issue_url": f"https://github.com/{factory['owner']}/{factory['repo']}/issues/{job['issue_number']}",
                     "pr_url": delivery.get("pr_url"),
+                    "pr_number": delivery.get("pr_number"),
+                    "last_updated_at": last_updated.isoformat()
+                    if last_updated
+                    else None,
                     "detail": latest.get("reason") or latest.get("question"),
                 }
             )

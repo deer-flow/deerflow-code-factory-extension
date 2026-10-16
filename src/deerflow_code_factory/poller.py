@@ -37,7 +37,11 @@ class Poller:
                 continue
             existing = {job["issue_id"] for job in self.store.list_jobs(factory_id)}
             self.store.create_or_get_job(
-                factory_id, issue_id=ticket.issue_id, issue_number=ticket.number
+                factory_id,
+                issue_id=ticket.issue_id,
+                issue_number=ticket.number,
+                issue_title=ticket.title,
+                issue_updated_at=ticket.updated_at.isoformat(),
             )
             if ticket.issue_id not in existing:
                 created += 1
