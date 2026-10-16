@@ -8,3 +8,5 @@ Plan: [implementation-plan.md](implementation-plan.md)
 - Next: harden restart recovery and CI-failure repair. GitHub App authentication and fully automatic draft-job dispatch are deferred per user direction and approval constraints. Agent output is transferred as bounded structured JSON in the Agent's final reply, avoiding a host API addition for the MVP.
 
 No live GitHub repository was mutated. Publishing remains outside the MVP.
+
+- Issue #3 诊断与修复：人工回复原先只在评论中，规划 Agent 未读取；规划阶段原先只看到文件名；一次 Agent 最终回复还因非 JSON 报错。现读取有界评论与源码、收紧规划提示词并对格式错误重试一次。

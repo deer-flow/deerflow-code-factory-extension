@@ -10,7 +10,18 @@ class FakeGh:
         if path.endswith("git/commits/base"):
             return {"tree": {"sha": "tree"}}
         if "git/trees/tree" in path:
-            return {"tree": [{"path": "README.md", "type": "blob"}], "truncated": False}
+            return {
+                "tree": [
+                    {"path": "README.md", "type": "blob"},
+                    {"path": "counter.py", "type": "blob"},
+                ],
+                "truncated": False,
+            }
+        if "/contents/" in path:
+            return {
+                "encoding": "base64",
+                "content": "ZGVmIGFkZChhLCBiKTogcmV0dXJuIGEgKyBiCg==",
+            }
         raise AssertionError(path)
 
 
@@ -20,3 +31,11 @@ async def test_new_file_in_relevant_paths_is_skipped():
         FakeGh(), {"owner": "acme", "repo": "widget"}, "main", ["counter.py"]
     )
     assert "README.md" in context
+
+
+@pytest.mark.asyncio
+async def test_planning_context_reads_small_source_files():
+    context = await load_repository_context(
+        FakeGh(), {"owner": "acme", "repo": "widget"}, "main"
+    )
+    assert "def add(a, b)" in context

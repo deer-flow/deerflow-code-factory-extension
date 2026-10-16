@@ -121,6 +121,14 @@ class GhIssueSource:
         row = await self.gh.api(f"{self._path(factory)}/{ref.number}")
         if row["id"] != ref.issue_id:
             raise ValueError("issue identity changed")
+        pages = await self.gh.api(
+            f"{self._path(factory)}/{ref.number}/comments?per_page=100", paginate=True
+        )
+        comments = tuple(
+            f"{item.get('user', {}).get('login', 'unknown')}: {(item.get('body') or '')[:2000]}"
+            for item in [item for page in pages for item in page][-20:]
+            if item.get("body")
+        )
         return RequirementSnapshot(
             issue_id=row["id"],
             number=row["number"],
@@ -131,6 +139,7 @@ class GhIssueSource:
             labels=frozenset(label["name"] for label in row.get("labels", [])),
             updated_at=datetime.fromisoformat(row["updated_at"].replace("Z", "+00:00")),
             is_pull_request="pull_request" in row,
+            comments=comments,
         )
 
 

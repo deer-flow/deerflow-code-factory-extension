@@ -14,9 +14,17 @@ async def load_repository_context(gh, factory, base_branch: str, relevant_paths=
     if len(paths) > 5000:
         raise ValueError("repository has too many files for MVP context")
     # Planning may name files it intends to create. They have no base content.
-    selected = [path for path in dict.fromkeys(relevant_paths or []) if path in paths][
-        :20
-    ]
+    if relevant_paths is None:
+        selected = [
+            path
+            for path in paths
+            if not path.startswith(".github/")
+            and path.endswith((".py", ".md", ".toml", ".txt", ".json", ".yaml", ".yml"))
+        ][:20]
+    else:
+        selected = [path for path in dict.fromkeys(relevant_paths) if path in paths][
+            :20
+        ]
     pieces = ["Repository files:\n" + "\n".join(paths)]
     total = 0
     for path in selected:

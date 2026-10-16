@@ -36,6 +36,7 @@ async def test_cli_issue_source_reads_candidates_and_excludes_prs():
                 "labels": [{"name": "factory:ready"}],
                 "updated_at": "2026-10-15T01:00:00Z",
             },
+            [[{"user": {"login": "alice"}, "body": "Please add tests as well"}]],
         ]
     )
     source = GhIssueSource(gh)
@@ -46,6 +47,7 @@ async def test_cli_issue_source_reads_candidates_and_excludes_prs():
     assert refs == [IssueRef(10, 1)]
     snapshot = await source.fetch(factory, refs[0])
     assert snapshot.title == "Export"
+    assert snapshot.comments == ("alice: Please add tests as well",)
     assert "since=2026-10-14T00%3A00%3A00Z" in gh.calls[0][1]
 
 

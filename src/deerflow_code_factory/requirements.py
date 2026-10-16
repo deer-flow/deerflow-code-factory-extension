@@ -24,6 +24,7 @@ class RequirementSnapshot:
     labels: frozenset[str]
     updated_at: datetime
     is_pull_request: bool = False
+    comments: tuple[str, ...] = ()
 
 
 class RequirementSource(Protocol):

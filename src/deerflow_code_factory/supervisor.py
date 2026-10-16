@@ -77,7 +77,7 @@ class JobSupervisor:
                 job_id, "planning", {"issue_updated_at": ticket.updated_at.isoformat()}
             )
             tree = await load_repository_context(self.gh, factory, branch)
-            spec = await stages.plan(ticket.title, ticket.body, tree)
+            spec = await stages.plan(ticket.title, ticket.body, tree, ticket.comments)
             if not spec["ready"]:
                 question = spec["question"][:1000]
                 await self.gh.api(

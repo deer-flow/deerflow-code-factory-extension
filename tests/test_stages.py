@@ -7,6 +7,8 @@ def test_parse_json_answer_rejects_non_object():
     with pytest.raises(ValueError):
         parse_json_answer("[1, 2]")
     assert parse_json_answer('```json\n{"ready": true}\n```') == {"ready": True}
+    assert parse_json_answer('```\n{"ready": true}\n```') == {"ready": True}
+    assert parse_json_answer('Here is the result:\n{"ready": true}') == {"ready": True}
 
 
 class FakeRuns:
@@ -62,3 +64,27 @@ async def test_stages_refuse_implicit_interrupt_approval():
     runs.get_state = interrupted
     with pytest.raises(RuntimeError, match="interrupt"):
         await AgentStages(runs).plan("x", "Acceptance Criteria: x", "tree")
+
+
+@pytest.mark.asyncio
+async def test_plan_includes_human_issue_reply_and_repository_content():
+    runs = FakeRuns(['{"ready": true, "spec": "Add subtraction and tests"}'])
+    await AgentStages(runs).plan(
+        "Subtract",
+        "Acceptance Criteria: sub(3, 2) == 1",
+        "--- counter.py ---\ndef add(a, b): return a + b",
+        ("zhfeng: Please add tests as well",),
+    )
+    prompt = runs.prompts[0][1]
+    assert "Please add tests as well" in prompt
+    assert "def add(a, b)" in prompt
+
+
+@pytest.mark.asyncio
+async def test_invalid_agent_json_gets_one_fresh_retry():
+    runs = FakeRuns(["not JSON", '{"ready": true, "spec": "Add subtraction"}'])
+    result = await AgentStages(runs).plan(
+        "Subtract", "Acceptance Criteria: sub(3, 2) == 1", "repo tree"
+    )
+    assert result["ready"] is True
+    assert runs.threads == 2
