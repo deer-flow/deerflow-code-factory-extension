@@ -54,7 +54,7 @@ class GhClient:
         if (
             not path
             or path.startswith("-")
-            or method not in {"GET", "POST", "PATCH", "PUT"}
+            or method not in {"GET", "POST", "PATCH", "PUT", "DELETE"}
         ):
             raise ValueError("invalid gh api request")
         if fields is not None and body is not None:

@@ -7,6 +7,19 @@ class GitHubCompletion:
     def __init__(self, gh: GhClient):
         self.gh = gh
 
+    async def _finish_issue_labels(self, root: str, issue_number: int) -> None:
+        issue_path = f"{root}/issues/{issue_number}"
+        issue = await self.gh.api(issue_path)
+        labels = {label["name"] for label in issue.get("labels", [])}
+        if "factory:done" not in labels:
+            await self.gh.api(
+                f"{issue_path}/labels",
+                method="POST",
+                body={"labels": ["factory:done"]},
+            )
+        if "factory:ready" in labels:
+            await self.gh.api(f"{issue_path}/labels/factory%3Aready", method="DELETE")
+
     async def refresh(
         self, factory, *, issue_number: int, pr_number: int, head_sha: str
     ) -> dict:
@@ -15,6 +28,7 @@ class GitHubCompletion:
         if pr["head"]["sha"] != head_sha:
             return {"state": "stale_head"}
         if pr.get("merged"):
+            await self._finish_issue_labels(root, issue_number)
             return {"state": "done", "merge_sha": pr.get("merge_commit_sha")}
         if pr.get("state") != "open":
             return {"state": "closed"}
@@ -48,9 +62,5 @@ class GitHubCompletion:
             return {"state": "awaiting_merge"}
         if not merged.get("merged"):
             return {"state": "awaiting_merge"}
-        await self.gh.api(
-            f"{root}/issues/{issue_number}/labels",
-            method="POST",
-            body={"labels": ["factory:done"]},
-        )
+        await self._finish_issue_labels(root, issue_number)
         return {"state": "done", "merge_sha": merged.get("sha")}

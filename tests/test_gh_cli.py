@@ -91,6 +91,10 @@ async def test_cli_invocation_never_uses_shell(monkeypatch):
     assert await GhClient().api("repos/acme/widget") == {"id": 42}
     assert captured[0][0][:3] == ["gh", "api", "repos/acme/widget"]
     assert captured[0][1]["shell"] is False
+    await GhClient().api(
+        "repos/acme/widget/issues/7/labels/factory%3Aready", method="DELETE"
+    )
+    assert captured[1][0][-2:] == ["--method", "DELETE"]
 
 
 @pytest.mark.asyncio

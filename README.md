@@ -6,7 +6,7 @@
 - [首版实施计划](docs/implementation-plan.md)
 - [真实端到端验收记录](docs/acceptance.md)
 
-当前已实现代码工厂管理页：选择 GitHub、输入已有仓库的 HTTPS 地址并点击‘加入’，验证后确认创建缺失标签、启停、手动扫描、手动刷新状态，并通过仓库下拉框查看工单号、Issue、标题、状态、PR 和最后更新时间，并可对每个工单显式点击“开始开发”。GitLab 暂时不可选，留待后续适配。后台每 180 秒通过 Gateway 进程的 `gh` CLI 登录态轮询已启用的仓库。进入轮询的 Issue 必须带 `factory:ready` 标签；PR 会被排除。启动后，DeerFlow Agent 分别完成规格分析、编码和独立审核。审核通过的文件通过 GitHub Git Data API 提交到 `code-factory/issue-<number>` 分支并创建 PR。后台按 PR head SHA 检查 CI；至少有一项检查且全部通过后，尝试按 GitHub 仓库规则 squash 合并。若需要人工审批，保持 `awaiting_merge`；合并成功后给原 Issue 添加 `factory:done` 标签。发布仍是独立流程。
+当前已实现代码工厂管理页：选择 GitHub、输入已有仓库的 HTTPS 地址并点击‘加入’，验证后确认创建缺失标签、启停、手动扫描、手动刷新状态，并通过仓库下拉框查看工单号、Issue、标题、状态、PR 和最后更新时间，并可对每个工单显式点击“开始开发”。GitLab 暂时不可选，留待后续适配。后台每 180 秒通过 Gateway 进程的 `gh` CLI 登录态轮询已启用的仓库。进入轮询的 Issue 必须带 `factory:ready` 标签；PR 会被排除。启动后，DeerFlow Agent 分别完成规格分析、编码和独立审核。审核通过的文件通过 GitHub Git Data API 提交到 `code-factory/issue-<number>` 分支并创建 PR。后台按 PR head SHA 检查 CI；至少有一项检查且全部通过后，尝试按 GitHub 仓库规则 squash 合并。若需要人工审批，保持 `awaiting_merge`；合并成功后给原 Issue 添加 `factory:done` 标签，并移除 `factory:ready`；已合并 PR 的重试也会修复这两个标签。发布仍是独立流程。
 
 当前限制：仅支持已有且有默认分支的仓库；代码 Agent 每轮最多修改 50 个 UTF-8 文本文件、总量 256 KiB，不允许修改 `.github` 工作流；最多三轮审核。CI 失败会进入 `failed_checks`，暂未自动修复。服务重启会中止运行中的 Agent 阶段，需在界面重新启动；已创建的分支或 PR 不会自动覆盖。已在隔离私有仓库完成一次 Issue 到合并验收，详见[验收记录](docs/acceptance.md)。
 
