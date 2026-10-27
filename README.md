@@ -61,3 +61,7 @@ PR 创建后，工单可依次显示“等待检查”“等待审核”“处�
 每轮编码最多修改 50 个 UTF-8 文本文件，总量不超过 256 KiB；Agent 不能修改 `.github` 工作流。默认检查命令适用于 Python 项目；其他技术栈需提供预建检查镜像和对应命令。服务重启会中止运行中的 Agent 阶段，需要在界面重新启动；已创建的分支或 PR 不会自动覆盖。私有验收仓库的旧版 Issue → PR → CI → 合并路径已做真实验收，见[验收记录](docs/acceptance.md)；**新增的真人批准与审核意见修复门槛目前由自动化测试覆盖，尚未用两个 GitHub 身份完成真实端到端验收**。
 
 设计与实现记录：[规格](docs/spec.md) · [实施计划](docs/implementation-plan.md) · [PR 审核及合并门槛](docs/superpowers/specs/2026-10-16-pr-review-and-merge-gates-design.md) · [进度](docs/progress.md)。
+
+## 许可证
+
+本项目采用 [MIT 许可证](LICENSE)。
