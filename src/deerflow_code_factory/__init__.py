@@ -39,7 +39,31 @@ def install(registry: Any, config: dict[str, Any]) -> None:
     store = FactoryStore(path)
     setup = GhRepositorySetup(GhClient())
     poller = Poller(store, GhIssueSource(GhClient()))
-    supervisor = JobSupervisor(store)
+    workspace_root = config.get("workspace_root", str(Path(path).parent / "workspaces"))
+    if not isinstance(workspace_root, str) or not Path(workspace_root).is_absolute():
+        raise ValueError("workspace_root must be an absolute path")
+    supervisor = JobSupervisor(
+        store,
+        workspace_root=workspace_root,
+        check_image=config.get("check_image", "python:3.12-slim"),
+        check_command=config.get(
+            "check_command", "python -m unittest discover -s tests"
+        ),
+    )
+    required_checks = config.get("required_checks", [])
+    approver_logins = config.get("approver_logins", [])
+    automation_login = config.get("automation_login")
+    if (
+        not isinstance(required_checks, list)
+        or not all(isinstance(item, str) and item.strip() for item in required_checks)
+        or not isinstance(approver_logins, list)
+        or not all(isinstance(item, str) and item.strip() for item in approver_logins)
+        or (
+            automation_login is not None
+            and (not isinstance(automation_login, str) or not automation_login.strip())
+        )
+    ):
+        raise ValueError("invalid PR check or approval configuration")
     allowed = set(operators)
 
     def owner(context: Any) -> str:
@@ -236,5 +260,8 @@ def install(registry: Any, config: dict[str, Any]) -> None:
                 poller,
                 config.get("poll_interval_seconds", 180),
                 supervisor=supervisor,
+                required_checks=tuple(required_checks),
+                approver_logins=tuple(approver_logins),
+                automation_login=automation_login,
             )
         )

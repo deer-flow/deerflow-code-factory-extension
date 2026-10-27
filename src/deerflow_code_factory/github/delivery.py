@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .gh_cli import GhClient
@@ -38,6 +39,77 @@ def validate_files(files: list[dict[str, str]]) -> list[dict[str, str]]:
 class GitHubDelivery:
     def __init__(self, gh: GhClient):
         self.gh = gh
+
+    async def post_review_summary(
+        self, factory: dict[str, Any], pr_number: int, head_sha: str, summary: str
+    ) -> None:
+        root = f"repos/{factory['owner']}/{factory['repo']}"
+        marker = f"<!-- deerflow-code-factory-review:{head_sha} -->"
+        pages = await self.gh.api(
+            f"{root}/issues/{pr_number}/comments?per_page=100", paginate=True
+        )
+        if any(marker in (item.get("body") or "") for page in pages for item in page):
+            return
+        await self.gh.api(
+            f"{root}/issues/{pr_number}/comments",
+            method="POST",
+            body={"body": f"{marker}\n{summary[:9000]}"},
+        )
+
+    async def reply_to_review_thread(self, thread_id: str, body: str) -> None:
+        response = await self.gh.api(
+            "graphql",
+            method="POST",
+            body={
+                "query": "mutation($id:ID!,$body:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$body}){comment{id}}}",
+                "variables": {"id": thread_id, "body": body[:3000]},
+            },
+        )
+        if response.get("errors") or not response.get("data", {}).get(
+            "addPullRequestReviewThreadReply"
+        ):
+            raise RuntimeError("could not reply to PR review thread")
+
+    async def create_pull_request_for_branch(
+        self,
+        factory: dict[str, Any],
+        *,
+        issue_number: int,
+        head_branch: str,
+        base_branch: str,
+        head_sha: str,
+        base_sha: str,
+        title: str,
+        description: str,
+    ) -> dict[str, Any]:
+        if (
+            issue_number <= 0
+            or not head_sha
+            or not base_sha
+            or not re.fullmatch(
+                rf"code-factory/issue-{issue_number}-run-[0-9]+", head_branch
+            )
+        ):
+            raise ValueError("invalid pull request source")
+        root = f"repos/{factory['owner']}/{factory['repo']}"
+        pr = await self.gh.api(
+            f"{root}/pulls",
+            method="POST",
+            body={
+                "title": title[:120],
+                "body": description[:10000],
+                "head": head_branch,
+                "base": base_branch,
+                "draft": False,
+            },
+        )
+        return {
+            "pr_number": pr["number"],
+            "pr_url": pr["html_url"],
+            "head_branch": head_branch,
+            "head_sha": head_sha,
+            "base_sha": base_sha,
+        }
 
     async def deliver(
         self,

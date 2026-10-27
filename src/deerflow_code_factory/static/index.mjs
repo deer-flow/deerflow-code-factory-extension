@@ -1,6 +1,6 @@
 const copy = {
-  zh: { title: "代码工厂", intro: "连接仓库，验证后轮询带 factory:ready 标签的 Issue。", provider: "代码平台", repoUrl: "仓库地址", join: "加入", urlHint: "请输入 GitHub 仓库地址，例如 https://github.com/owner/repo", labels: "缺少的标签", confirm: "创建缺少的标签", factories: "已连接的仓库", selectRepo: "选择仓库", ticketId: "工单号", issueId: "Issue 号", issueTitle: "标题", phase: "状态", prId: "PR 号", updated: "最后更新时间", actions: "操作", noTitle: "标题尚未同步", refresh: "刷新状态", empty: "尚未连接仓库。输入仓库地址后点击加入。", loading: "正在加载…", disabled: "未启用", enabled: "已启用", enable: "启用", disable: "停用", scan: "立即扫描", jobs: "需求工单", noJobs: "尚未发现符合条件的 Issue。", start: "开始开发", started: "开发任务已启动", error: "操作失败，请检查 gh 登录状态和仓库权限。", validated: "仓库验证通过", invalid: "仓库尚不能启用", created: "仓库已加入代码工厂", scanned: "扫描完成，新发现 {count} 个工单。", cursor: "上次扫描游标", noCursor: "尚未扫描" },
-  en: { title: "Code factory", intro: "Connect a repository, then poll Issues labeled factory:ready after validation.", provider: "Platform", repoUrl: "Repository URL", join: "Add", urlHint: "Enter a GitHub repository URL, such as https://github.com/owner/repo", labels: "Missing labels", confirm: "Create missing labels", factories: "Connected repositories", selectRepo: "Select repository", ticketId: "Ticket", issueId: "Issue", issueTitle: "Title", phase: "Status", prId: "PR", updated: "Last updated", actions: "Actions", noTitle: "Title not synced yet", refresh: "Refresh status", empty: "No repositories connected. Enter a repository URL and select Add.", loading: "Loading…", disabled: "Disabled", enabled: "Enabled", enable: "Enable", disable: "Disable", scan: "Scan now", jobs: "Requirement tickets", noJobs: "No eligible Issues found yet.", start: "Start development", started: "Development job started", error: "Action failed. Check gh authentication and repository permissions.", validated: "Repository validated", invalid: "Repository cannot be enabled yet", created: "Repository added to code factory", scanned: "Scan complete. {count} new tickets found.", cursor: "Last scan cursor", noCursor: "Not scanned" },
+  zh: { title: "代码工厂", intro: "连接仓库，验证后轮询带 factory:ready 标签的 Issue。", provider: "代码平台", repoUrl: "仓库地址", join: "加入", urlHint: "请输入 GitHub 仓库地址，例如 https://github.com/owner/repo", labels: "缺少的标签", confirm: "创建缺少的标签", factories: "已连接的仓库", selectRepo: "选择仓库", ticketId: "工单号", issueId: "Issue 号", issueTitle: "标题", phase: "状态", prId: "PR 号", updated: "最后更新时间", actions: "操作", noTitle: "标题尚未同步", refresh: "刷新状态", empty: "尚未连接仓库。输入仓库地址后点击加入。", loading: "正在加载…", disabled: "未启用", enabled: "已启用", enable: "启用", disable: "停用", scan: "立即扫描", jobs: "需求工单", noJobs: "尚未发现符合条件的 Issue。", start: "开始开发", started: "开发任务已启动", alreadyStarted: "该工单已经启动，请查看最新状态。", error: "操作失败，请检查 gh 登录状态和仓库权限。", validated: "仓库验证通过", invalid: "仓库尚不能启用", created: "仓库已加入代码工厂", scanned: "扫描完成，新发现 {count} 个工单。", cursor: "上次扫描游标", noCursor: "尚未扫描" },
+  en: { title: "Code factory", intro: "Connect a repository, then poll Issues labeled factory:ready after validation.", provider: "Platform", repoUrl: "Repository URL", join: "Add", urlHint: "Enter a GitHub repository URL, such as https://github.com/owner/repo", labels: "Missing labels", confirm: "Create missing labels", factories: "Connected repositories", selectRepo: "Select repository", ticketId: "Ticket", issueId: "Issue", issueTitle: "Title", phase: "Status", prId: "PR", updated: "Last updated", actions: "Actions", noTitle: "Title not synced yet", refresh: "Refresh status", empty: "No repositories connected. Enter a repository URL and select Add.", start: "Start development", started: "Development job started", alreadyStarted: "This ticket has already started. See its current status.", error: "Action failed. Check gh authentication and repository permissions.", validated: "Repository validated", invalid: "Repository cannot be enabled yet", created: "Repository added to code factory", scanned: "Scan complete. {count} new tickets found.", cursor: "Last scan cursor", noCursor: "Not scanned" },
 };
 
 export function parseRepositoryUrl(provider, value) {
@@ -26,7 +26,13 @@ function el(tag, text, className) {
   return node;
 }
 
-const phaseZh = { draft: "待启动", planning: "分析中", coding: "编码中", reviewing: "审核中", blocked: "待补充", awaiting_checks: "等待 CI", failed_checks: "CI 失败", awaiting_merge: "等待合并", done: "已完成", failed: "失败", stale_head: "代码已更新", closed: "PR 已关闭" };
+export function pollDelayForJobs(jobs) {
+  if (jobs.some((job) => ["planning", "coding", "testing", "reviewing"].includes(job.phase))) return 10_000;
+  if (jobs.some((job) => ["awaiting_checks", "awaiting_review", "addressing_review", "review_blocked", "awaiting_approval", "awaiting_merge"].includes(job.phase))) return 30_000;
+  return null;
+}
+
+const phaseZh = { draft: "待启动", planning: "分析中", coding: "编码中", testing: "本地测试中", reviewing: "审核中", blocked: "待补充", awaiting_checks: "等待 CI", awaiting_review: "等待外部审核", addressing_review: "处理审核意见", review_blocked: "审核意见需人工处理", awaiting_approval: "等待人工批准", failed_checks: "CI 失败", awaiting_merge: "等待合并", done: "已自动合并", merged_manual: "已手工合并", merged_unknown: "已合并", failed: "失败", stale_head: "代码已更新", closed: "PR 已关闭" };
 
 function mount(root, context) {
   const t = context.locale?.startsWith("zh") ? copy.zh : copy.en;
@@ -68,9 +74,83 @@ function mount(root, context) {
     finally { if (active()) button.disabled = false; }
   }
   let selectedFactoryId = null;
+  let pollTimer = null;
+  let rendered = null;
+  const pendingStarts = new Set();
+  const stopPolling = () => { if (pollTimer !== null) clearTimeout(pollTimer); pollTimer = null; };
+  function schedulePolling(jobs, delay = pollDelayForJobs(jobs)) {
+    stopPolling();
+    if (pendingStarts.size) delay = 10_000;
+    if (!delay || document.hidden || !active()) return;
+    pollTimer = setTimeout(() => { pollTimer = null; void refreshJobs(); }, delay);
+  }
   const dateFormat = new Intl.DateTimeFormat(context.locale?.startsWith("zh") ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
+  const jobSignature = (job) => JSON.stringify([job.phase, job.issue_title, job.detail, job.pr_number, job.pr_url, job.last_updated_at, pendingStarts.has(job.id)]);
+  function jobRow(job, factory) {
+    const row = el("tr"); row.dataset.jobId = job.id;
+    const ticketCell = el("td", `CF-${job.id.slice(0, 8)}`, "ticket-id"); ticketCell.title = job.id;
+    const issueCell = el("td");
+    const issueLink = el("a", `#${job.issue_number}`);
+    issueLink.href = job.issue_url; issueLink.target = "_blank"; issueLink.rel = "noopener noreferrer"; issueCell.append(issueLink);
+    const titleCell = el("td", job.issue_title || t.noTitle, "issue-title");
+    if (job.detail) titleCell.append(el("small", job.detail, "job-detail"));
+    const phaseText = pendingStarts.has(job.id) && job.phase === "draft"
+      ? (context.locale?.startsWith("zh") ? "启动中" : "Starting")
+      : (context.locale?.startsWith("zh") ? (phaseZh[job.phase] || job.phase) : job.phase);
+    const phaseCell = el("td"); phaseCell.append(el("span", phaseText, "phase-pill"));
+    const prCell = el("td", "—");
+    if (Number.isInteger(job.pr_number) && typeof job.pr_url === "string" && job.pr_url.startsWith(`https://github.com/${factory.owner}/${factory.repo}/pull/`)) {
+      const prLink = el("a", `#${job.pr_number}`); prLink.href = job.pr_url; prLink.target = "_blank"; prLink.rel = "noopener noreferrer";
+      prCell.replaceChildren(prLink);
+    }
+    const updatedAt = job.last_updated_at ? new Date(job.last_updated_at) : null;
+    const updatedCell = el("td", updatedAt && !Number.isNaN(updatedAt.getTime()) ? dateFormat.format(updatedAt) : "—", "updated-at");
+    const actionCell = el("td");
+    if (["draft", "blocked", "failed"].includes(job.phase) && !pendingStarts.has(job.id)) {
+      const start = el("button", t.start); start.type = "button";
+      start.addEventListener("click", () => void action(start, async () => {
+        const result = await context.callBackend("start_job", { job_id: job.id });
+        if (result.started) pendingStarts.add(job.id);
+        if (active()) message.textContent = result.started ? t.started : t.alreadyStarted;
+        await refreshJobs();
+      }), { signal: context.signal });
+      actionCell.append(start);
+    }
+    row.append(ticketCell, issueCell, titleCell, phaseCell, prCell, updatedCell, actionCell);
+    row.dataset.signature = jobSignature(job);
+    return row;
+  }
+  function renderJobs(jobs) {
+    if (!rendered) return;
+    const { factory, body, tableWrap } = rendered;
+    for (const job of jobs) if (job.phase !== "draft") pendingStarts.delete(job.id);
+    const oldRows = new Map([...body.children].map((row) => [row.dataset.jobId, row]));
+    const rows = jobs.map((job) => {
+      const old = oldRows.get(job.id);
+      return old?.dataset.signature === jobSignature(job) ? old : jobRow(job, factory);
+    });
+    if (!jobs.length) {
+      const empty = el("tr"); const cell = el("td", t.noJobs, "empty"); cell.colSpan = 7; empty.append(cell); rows.push(empty);
+    }
+    rows.forEach((row, index) => { if (body.children[index] !== row) body.insertBefore(row, body.children[index] || null); });
+    while (body.children.length > rows.length) body.lastChild.remove();
+    tableWrap.hidden = false;
+    schedulePolling(jobs);
+  }
+  async function refreshJobs() {
+    const view = rendered;
+    if (!view || !active()) return;
+    try {
+      const jobs = await context.callBackend("list_jobs", { factory_id: view.factory.id });
+      if (!active() || rendered !== view) return;
+      renderJobs(jobs);
+    } catch {
+      if (active() && rendered === view) schedulePolling([], 30_000);
+    }
+  }
   async function refresh() {
     const current = ++sequence;
+    stopPolling(); rendered = null;
     cards.replaceChildren(el("p", t.loading));
     try {
       const factories = await context.callBackend("list_factories", {});
@@ -113,39 +193,15 @@ function mount(root, context) {
       cards.replaceChildren(picker, panel, heading, tableWrap);
       const jobs = await context.callBackend("list_jobs", { factory_id: factory.id });
       if (!active() || current !== sequence) return;
-      if (!jobs.length) { tableWrap.replaceChildren(el("p", t.noJobs, "empty")); return; }
-      for (const job of jobs) {
-        const row = el("tr");
-        const ticketCell = el("td", `CF-${job.id.slice(0, 8)}`, "ticket-id"); ticketCell.title = job.id;
-        const issueCell = el("td");
-        const issueLink = el("a", `#${job.issue_number}`);
-        issueLink.href = job.issue_url; issueLink.target = "_blank"; issueLink.rel = "noopener noreferrer"; issueCell.append(issueLink);
-        const titleCell = el("td", job.issue_title || t.noTitle, "issue-title");
-        if (job.detail) titleCell.append(el("small", job.detail, "job-detail"));
-        const phaseCell = el("td"); phaseCell.append(el("span", context.locale?.startsWith("zh") ? (phaseZh[job.phase] || job.phase) : job.phase, "phase-pill"));
-        const prCell = el("td", "—");
-        if (Number.isInteger(job.pr_number) && typeof job.pr_url === "string" && job.pr_url.startsWith(`https://github.com/${factory.owner}/${factory.repo}/pull/`)) {
-          const prLink = el("a", `#${job.pr_number}`); prLink.href = job.pr_url; prLink.target = "_blank"; prLink.rel = "noopener noreferrer";
-          prCell.replaceChildren(prLink);
-        }
-        const updatedAt = job.last_updated_at ? new Date(job.last_updated_at) : null;
-        const updatedCell = el("td", updatedAt && !Number.isNaN(updatedAt.getTime()) ? dateFormat.format(updatedAt) : "—", "updated-at");
-        const actionCell = el("td");
-        if (["draft", "blocked", "failed"].includes(job.phase)) {
-          const start = el("button", t.start); start.type = "button";
-          start.addEventListener("click", () => void action(start, async () => {
-            await context.callBackend("start_job", { job_id: job.id });
-            if (active()) message.textContent = t.started;
-            await refresh();
-          }), { signal: context.signal });
-          actionCell.append(start);
-        }
-        row.append(ticketCell, issueCell, titleCell, phaseCell, prCell, updatedCell, actionCell);
-        body.append(row);
-      }
+      rendered = { factory, body, tableWrap };
+      renderJobs(jobs);
     } catch (cause) { if (active() && current === sequence) { cards.replaceChildren(); error.textContent = cause?.message || t.error; } }
   }
   refreshButton.addEventListener("click", () => void action(refreshButton, refresh), { signal: context.signal });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopPolling();
+    else void refreshJobs();
+  }, { signal: context.signal });
   let setupSequence = 0;
   const resetSetup = () => { setupSequence += 1; setupResult.replaceChildren(); };
   repoInput.addEventListener("input", resetSetup, { signal: context.signal });
@@ -185,7 +241,7 @@ function mount(root, context) {
     });
   }, { signal: context.signal });
   void refresh();
-  return { dispose() { disposed = true; sequence += 1; root.replaceChildren(); } };
+  return { dispose() { disposed = true; sequence += 1; stopPolling(); root.replaceChildren(); } };
 }
 
 export default { apiVersion: 1, module: "code-factory.v1", surfaces: [{ id: "factories", slot: "page", title: "Code factory", navigation: { label: "Code factory", labelZh: "代码工厂", icon: "code" }, mount }] };

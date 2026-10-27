@@ -58,3 +58,24 @@ async def test_delivery_commits_one_tree_and_creates_pr():
     tree = next(body for method, path, body in gh.calls if path.endswith("git/trees"))
     assert tree["base_tree"] == "tree0"
     assert tree["tree"][0]["path"] == "src/export.py"
+
+
+@pytest.mark.asyncio
+async def test_review_summary_is_posted_once_per_head():
+    class Gh:
+        def __init__(self):
+            self.comments = []
+
+        async def api(self, path, *, method="GET", body=None, paginate=False):
+            if method == "GET":
+                return [self.comments]
+            self.comments.append(body)
+            return {"id": len(self.comments)}
+
+    gh = Gh()
+    delivery = GitHubDelivery(gh)
+    factory = {"owner": "acme", "repo": "widget"}
+    await delivery.post_review_summary(factory, 9, "a" * 40, "Tests and review passed")
+    await delivery.post_review_summary(factory, 9, "a" * 40, "Tests and review passed")
+    assert len(gh.comments) == 1
+    assert "deerflow-code-factory-review" in gh.comments[0]["body"]
